@@ -1,15 +1,17 @@
-add// sum number for array
-//
+/*الوظيفة الأولى توليد مصفوفة بشكل عشوائي وجمع عناصرها عن طريق بحيث
+*/يقون الخيط الرئيسي بتوزيع المهام على الخيوط الفرعية وإعادة استلام النتائج من الخبط الفرعي
 
+
+//استدعاء المكاتب المطلوبة 
 #include "stdafx.h"
 #include <mpi.h> 
 #include <stdio.h> 
 #include <stdlib.h> 
 #include <time.h>
 
-// size of array 
+// تعريف حجم المصفوفة 
 #define n 12
-// Temporary array for slave process 
+// تعريف حجم المصفوفة 
 int a2[n];
 
 int main(int argc, char* argv[])
@@ -30,36 +32,32 @@ int main(int argc, char* argv[])
 	printf("\n");
 
 	int pid, np, elements_per_process,n_elements_recieved;
-	// np -> no. of processes 
-	// pid -> process id 
-
+	// np هي عدد خطوط العمليات
+	// pid رقم الخيط الذي قام بهذه المهمة 
+         
+         //البدء بالعمل بشكل تفرعي
 	MPI_Status status;
-
-	// Creation of parallel processes 
 	MPI_Init(&argc, &argv);
 
-	// find out process ID, 
-	// and how many processes were started 
+	// معرفة عدد العمليات و ورقم كل عملية
 	MPI_Comm_rank(MPI_COMM_WORLD, &pid);
 	MPI_Comm_size(MPI_COMM_WORLD, &np);
 
-	// master process 
+	// الخيط الرئيسي 
 	if (pid == 0) {
 		int index, i;
 		elements_per_process = n / np;
 
-		// check if more than 1 processes are run 
+		// التحقق اذا تم البدء بأكثر من عملية 
 		if (np > 1) {
-			// distributes the portion of array 
-			// to child processes to calculate 
-			// their partial sums 
+			//  توزيع المصفوفة على المعالجات الفرعية 
 			for (i = 1; i < np - 1; i++) {
 				index = i * elements_per_process;
 				MPI_Send(&elements_per_process,	1, MPI_INT, i, 0,MPI_COMM_WORLD);
 				MPI_Send(&a[index],elements_per_process,MPI_INT, i, 0,MPI_COMM_WORLD);
 			}
 
-			// last process adds remaining elements 
+			// احضار نواتج العمليات الفرعية من قبل الخيط الرئيسي
 			index = i * elements_per_process;
 			int elements_left = n - index;
 
@@ -67,7 +65,7 @@ int main(int argc, char* argv[])
 			MPI_Send(&a[index],elements_left,MPI_INT, i, 0,MPI_COMM_WORLD);
 		}
 
-		// master process add its own sub array 
+		// جمع نواتج عمليات الخيوط الفرعية مع الخيط الرئيسي  
 		int sum = 0;
 		for (i = 0; i < elements_per_process; i++)
 			sum += a[i];
@@ -80,29 +78,28 @@ int main(int argc, char* argv[])
 			sum += tmp;
 		}
 
-		// prints the final sum of array 
+		// طباعة مجموع المصفوفة 
 		
       	printf("Sum of array is : %d\n", sum);
 	}
-	// slave processes 
+	// شرح كيفية القيام بالعمليات على الخيوط الفرعية 
 	else {
 		MPI_Recv(&n_elements_recieved,1, MPI_INT, 0, 0,MPI_COMM_WORLD,&status);
 
-		// stores the received array segment 
-		// in local array a2 
+		// تخزين قيم المصفوفة المستلمة من الخيط الرئيسي ووضعها في A2 
 		MPI_Recv(&a2, n_elements_recieved,MPI_INT, 0, 0,MPI_COMM_WORLD,&status);
 
-		// calculates its partial sum 
+		// حساب المجموع الجزئي
 		int partial_sum = 0;
 		for (int i = 0; i < n_elements_recieved; i++)
 			partial_sum += a2[i];
 
-		// sends the partial sum to the root process 
+		// إرسال ناتج عملية الجمع الفرعية إلى الخيط الرئيسي
 		MPI_Send(&partial_sum, 1, MPI_INT,0, 0, MPI_COMM_WORLD);
 		printf("sum calculated by process runk %d :  %d" ,pid, partial_sum);
 	}
 
-	// cleans up all MPI state before exit of process 
+	// إيقاف جميع العمليات التفرعية وإغلاق المكتبة 
 	MPI_Finalize();
 
 	return 0;
